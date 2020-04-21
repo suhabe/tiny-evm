@@ -3,3 +3,4 @@ klee-*
 CMakeLists.txt
 .idea
 cmake-build-debug
+*.bc

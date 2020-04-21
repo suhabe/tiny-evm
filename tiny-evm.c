@@ -1,24 +1,22 @@
 #include <stddef.h>
-#include <cxxabi.h>
+#include <stdint.h>
 #include <string.h>
 #include <assert.h>
 
-#define MAX_NUM_ACCOUNTS 10
+#define MAX_NUM_ACCOUNTS 100
 
-void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
-
-struct account {
+struct Account {
     uint64_t address;
     uint64_t balance;
     uint64_t nonce;
 };
 
-struct state {
+struct State {
     uint64_t numAccounts;
-    struct account accounts[MAX_NUM_ACCOUNTS];
+    struct Account accounts[MAX_NUM_ACCOUNTS];
 };
 
-struct transaction {
+struct Transaction {
     uint64_t origin;
     uint64_t sender;
     uint64_t recipient;
@@ -27,7 +25,7 @@ struct transaction {
     uint64_t gasPrice;
 };
 
-uint64_t add_account(struct state *s, const uint64_t address) {
+uint64_t add_account(struct State *s, const uint64_t address) {
     for (uint64_t i = 0; i < s->numAccounts; i++) {
         if (s->accounts[i].address == address) {
             return i;
@@ -44,42 +42,8 @@ uint64_t add_account(struct state *s, const uint64_t address) {
     return i;
 }
 
-struct account new_symbolic_account() {
-    struct account a;
-    memset(&a, 0, sizeof(struct account));
-    klee_make_symbolic(&a.address, sizeof(a.address), "address");
-    klee_make_symbolic(&a.balance, sizeof(a.balance), "balance");
-    klee_make_symbolic(&a.nonce, sizeof(a.nonce), "nonce");
-    return a;
-}
-
-//numAccounts must be less than MAX_NUM_ACCOUNTS
-struct state new_symbolic_state(uint64_t numAccounts) {
-    assert (numAccounts < MAX_NUM_ACCOUNTS);
-
-    struct state s;
-    memset(&s, 0, sizeof(struct state));
-    s.numAccounts = numAccounts;
-    for (uint64_t i = 0; i < sizeof(s.numAccounts); i++) {
-        s.accounts[i] = new_symbolic_account();
-    }
-    return s;
-}
-
-struct transaction new_symbolic_transaction() {
-    struct transaction t;
-    memset(&t, 0, sizeof(struct state));
-    klee_make_symbolic(&t.origin, sizeof(t.origin), "origin");
-    klee_make_symbolic(&t.sender, sizeof(t.sender), "sender");
-    klee_make_symbolic(&t.recipient, sizeof(t.recipient), "recipient");
-    klee_make_symbolic(&t.value, sizeof(t.value), "value");
-    klee_make_symbolic(&t.availableGas, sizeof(t.availableGas), "availableGas");
-    klee_make_symbolic(&t.gasPrice, sizeof(t.gasPrice), "gasPrice");
-    return t;
-}
-
-struct state apply(const struct state state0, const struct transaction tx) {
-    struct state state1 = state0;
+struct State apply(const struct State state0, const struct Transaction tx) {
+    struct State state1 = state0;
 
     uint64_t recipient_i = add_account(&state1, tx.recipient);
     uint64_t sender_i = add_account(&state1, tx.sender);
@@ -92,10 +56,55 @@ struct state apply(const struct state state0, const struct transaction tx) {
     return state1;
 }
 
-int main() {
-    const uint64_t numAccounts = 2;
 
-    struct state state_init = new_symbolic_state(numAccounts);
-    struct transaction tx = new_symbolic_transaction();
-    struct state state_final = apply(state_init, tx);
+///////////////////////////////////////////////////////////////////////////////
+
+void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
+uint64_t klee_symbolic_uint64(const char *name) {
+    uint64_t v;
+    klee_make_symbolic(&v, sizeof(v), name);
+    return v;
+}
+
+struct Account new_symbolic_account(uint64_t index) {
+    struct Account a;
+    memset(&a, 0, sizeof(struct Account));
+    a.address = klee_symbolic_uint64("address");
+    a.balance = klee_symbolic_uint64("balance");
+    a.nonce = klee_symbolic_uint64("nonce");
+    return a;
+}
+
+//numAccounts must be less than MAX_NUM_ACCOUNTS
+struct State new_symbolic_state(uint64_t numAccounts) {
+    assert (numAccounts < MAX_NUM_ACCOUNTS);
+
+    struct State s;
+    memset(&s, 0, sizeof(struct State));
+    s.numAccounts = numAccounts;
+    for (uint64_t i = 0; i < s.numAccounts; i++) {
+        s.accounts[i] = new_symbolic_account(i);
+    }
+    return s;
+}
+
+struct Transaction new_symbolic_transaction() {
+    struct Transaction t;
+    memset(&t, 0, sizeof(struct Transaction));
+    t.origin = klee_symbolic_uint64("address");
+    t.sender = klee_symbolic_uint64("sender");
+    t.recipient = klee_symbolic_uint64("recipient");
+    t.value = klee_symbolic_uint64("value");
+    t.availableGas = klee_symbolic_uint64("availableGas");
+    t.gasPrice = klee_symbolic_uint64("gasPrice");
+    return t;
+}
+///////////////////////////////////////////////////////////////////////////////
+
+int main() {
+    const uint64_t numAccounts = 10;
+
+    struct State state_init = new_symbolic_state(numAccounts);
+    struct Transaction tx = new_symbolic_transaction();
+    struct State state_final = apply(state_init, tx);
 }
