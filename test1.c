@@ -2,7 +2,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
+void klee_make_symbolic(void *addr, size_t nbytes, const char *name)  {}
+
 uint64_t klee_uint64(const char *name) {
     uint64_t v;
     klee_make_symbolic(&v, sizeof(v), name);

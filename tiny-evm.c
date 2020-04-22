@@ -59,7 +59,8 @@ struct State apply(const struct State state0, const struct Transaction tx) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void klee_make_symbolic(void *addr, size_t nbytes, const char *name);
+void klee_make_symbolic(void *addr, size_t nbytes, const char *name)  {}
+
 uint64_t klee_symbolic_uint64(const char *name) {
     uint64_t v;
     klee_make_symbolic(&v, sizeof(v), name);
@@ -102,7 +103,7 @@ struct Transaction new_symbolic_transaction() {
 ///////////////////////////////////////////////////////////////////////////////
 
 int main() {
-    const uint64_t numAccounts = 10;
+    const uint64_t numAccounts = 2;
 
     struct State state_init = new_symbolic_state(numAccounts);
     struct Transaction tx = new_symbolic_transaction();
