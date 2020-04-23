@@ -2,8 +2,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
-#define MAX_NUM_ACCOUNTS 100
+#define MAX_NUM_ACCOUNTS 10
+void klee_assume(int c)  {}
 
 struct Account {
     uint64_t address;
@@ -26,7 +28,9 @@ struct Transaction {
 };
 
 uint64_t add_account(struct State *s, const uint64_t address) {
+    printf("%llu\n", s->numAccounts);
     for (uint64_t i = 0; i < s->numAccounts; i++) {
+        printf("addr: %llu\n", s->accounts[i].address);
         if (s->accounts[i].address == address) {
             return i;
         }
@@ -36,7 +40,7 @@ uint64_t add_account(struct State *s, const uint64_t address) {
     s->numAccounts++;
 
     uint64_t i = s->numAccounts - 1;
-    s->accounts[i].address = address;
+    s->accounts[i].address = i;
     s->accounts[i].nonce = 0;
     s->accounts[i].balance = 0;
     return i;
@@ -70,7 +74,7 @@ uint64_t klee_symbolic_uint64(const char *name) {
 struct Account new_symbolic_account(uint64_t index) {
     struct Account a;
     memset(&a, 0, sizeof(struct Account));
-    a.address = klee_symbolic_uint64("address");
+    a.address = index;
     a.balance = klee_symbolic_uint64("balance");
     a.nonce = klee_symbolic_uint64("nonce");
     return a;
