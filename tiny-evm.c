@@ -3,9 +3,9 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define MAX_NUM_ACCOUNTS 10
-void klee_assume(int c)  {}
 
 struct Account {
     uint64_t address;
@@ -70,82 +70,44 @@ uint64_t klee_symbolic_uint64(const char *name) {
     return v;
 }
 
-struct Account new_symbolic_account(uint64_t index) {
-    struct Account a;
-    memset(&a, 0, sizeof(struct Account));
-    a.address = index;
-    a.balance = klee_symbolic_uint64("balance");
-    a.nonce = klee_symbolic_uint64("nonce");
-    return a;
-}
-
-//numAccounts must be less than MAX_NUM_ACCOUNTS
-struct State new_symbolic_state(uint64_t numAccounts) {
-    assert (numAccounts < MAX_NUM_ACCOUNTS);
-
-    struct State s;
-    memset(&s, 0, sizeof(struct State));
-    s.numAccounts = numAccounts;
-    for (uint64_t i = 0; i < s.numAccounts; i++) {
-        s.accounts[i] = new_symbolic_account(i);
-    }
-    return s;
-}
-
-struct Transaction new_symbolic_transaction() {
-    struct Transaction t;
-    memset(&t, 0, sizeof(struct Transaction));
-    t.origin = klee_symbolic_uint64("address");
-    t.sender = klee_symbolic_uint64("sender");
-    t.recipient = klee_symbolic_uint64("recipient");
-    t.value = klee_symbolic_uint64("value");
-    t.availableGas = klee_symbolic_uint64("availableGas");
-    t.gasPrice = klee_symbolic_uint64("gasPrice");
-    return t;
-}
-///////////////////////////////////////////////////////////////////////////////
-
-struct Transaction new_concrete_transaction() {
-    struct Transaction t;
-    memset(&t, 0, sizeof(struct Transaction));
-    return t;
-}
-
-struct Account new_concrete_account(uint64_t index) {
-    struct Account a;
-    memset(&a, 0, sizeof(struct Account));
-    a.address = index;
-    a.balance = 0;
-    a.nonce = 0;
-    return a;
-}
-
-struct State new_concrete_state(uint64_t numAccounts) {
-    assert (numAccounts < MAX_NUM_ACCOUNTS);
-
-    struct State s;
-    memset(&s, 0, sizeof(struct State));
-    s.numAccounts = numAccounts;
-    for (uint64_t i = 0; i < s.numAccounts; i++) {
-        s.accounts[i] = new_concrete_account(i);
-    }
-    return s;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-int main() {
-    const uint64_t numAccounts = 2;
-
-    if (1) {
-        struct State state_init = new_symbolic_state(numAccounts);
-        struct Transaction tx = new_symbolic_transaction();
-        struct State state_final = apply(state_init, tx);
+uint64_t get_value(int is_sym, char** argv, int argi, char* name) {
+    if (is_sym) {
+        return klee_symbolic_uint64(name);
     } else {
-        struct State state_init = new_concrete_state(numAccounts);
-        struct Transaction tx = new_concrete_transaction();
-        tx.recipient = 5;
-        tx.value = 10;
-        struct State state_final = apply(state_init, tx);
+        return atoi(argv[argi]);
     }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "%s", "usage: tiny-evm <numAccounts> ...");
+        exit(1);
+    }
+
+    int is_sym = (argc == 2);
+
+    int argi = 1;
+    int numAccounts = atoi(argv[argi++]);
+    assert (numAccounts < MAX_NUM_ACCOUNTS);
+
+    struct State initial_state;
+    memset(&initial_state, 0, sizeof(initial_state));
+    initial_state.numAccounts = numAccounts;
+    for (int i = 0; i < initial_state.numAccounts; i++) {
+        struct Account account;
+        account.address = i;
+        account.balance = get_value(is_sym, argv, argi++, "balance");
+        account.nonce = get_value(is_sym, argv, argi++, "nonce");
+    }
+
+    struct Transaction tx;
+    memset(&tx, 0, sizeof(tx));
+    tx.origin = get_value(is_sym, argv, argi++, "origin");
+    tx.sender = get_value(is_sym, argv, argi++,  "sender");
+    tx.recipient = get_value(is_sym, argv, argi++,  "recipient");
+    tx.value = get_value(is_sym, argv, argi++, "value");
+    tx.availableGas = get_value(is_sym, argv, argi++,  "availableGas");
+    tx.gasPrice = get_value(is_sym, argv, argi++,  "gasPrice");
+
+    struct State final_state = apply(initial_state, tx);
 }
