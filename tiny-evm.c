@@ -28,9 +28,7 @@ struct Transaction {
 };
 
 uint64_t add_account(struct State *s, const uint64_t address) {
-    printf("%llu\n", s->numAccounts);
     for (uint64_t i = 0; i < s->numAccounts; i++) {
-        printf("addr: %llu\n", s->accounts[i].address);
         if (s->accounts[i].address == address) {
             return i;
         }
@@ -38,7 +36,7 @@ uint64_t add_account(struct State *s, const uint64_t address) {
 
     assert(s->numAccounts + 1 < MAX_NUM_ACCOUNTS);
     s->numAccounts++;
-
+    printf("%s\n", "tx.recipient new account");
     uint64_t i = s->numAccounts - 1;
     s->accounts[i].address = i;
     s->accounts[i].nonce = 0;
@@ -53,6 +51,7 @@ struct State apply(const struct State state0, const struct Transaction tx) {
     uint64_t sender_i = add_account(&state1, tx.sender);
 
     if (tx.sender != tx.recipient) {
+        printf("%s\n", "tx.sender != tx.recipient");
         state1.accounts[recipient_i].balance = state0.accounts[recipient_i].balance + tx.value;
         state1.accounts[sender_i].balance = state0.accounts[sender_i].balance + tx.value;
     }
@@ -106,10 +105,47 @@ struct Transaction new_symbolic_transaction() {
 }
 ///////////////////////////////////////////////////////////////////////////////
 
+struct Transaction new_concrete_transaction() {
+    struct Transaction t;
+    memset(&t, 0, sizeof(struct Transaction));
+    return t;
+}
+
+struct Account new_concrete_account(uint64_t index) {
+    struct Account a;
+    memset(&a, 0, sizeof(struct Account));
+    a.address = index;
+    a.balance = 0;
+    a.nonce = 0;
+    return a;
+}
+
+struct State new_concrete_state(uint64_t numAccounts) {
+    assert (numAccounts < MAX_NUM_ACCOUNTS);
+
+    struct State s;
+    memset(&s, 0, sizeof(struct State));
+    s.numAccounts = numAccounts;
+    for (uint64_t i = 0; i < s.numAccounts; i++) {
+        s.accounts[i] = new_concrete_account(i);
+    }
+    return s;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 int main() {
     const uint64_t numAccounts = 2;
 
-    struct State state_init = new_symbolic_state(numAccounts);
-    struct Transaction tx = new_symbolic_transaction();
-    struct State state_final = apply(state_init, tx);
+    if (1) {
+        struct State state_init = new_symbolic_state(numAccounts);
+        struct Transaction tx = new_symbolic_transaction();
+        struct State state_final = apply(state_init, tx);
+    } else {
+        struct State state_init = new_concrete_state(numAccounts);
+        struct Transaction tx = new_concrete_transaction();
+        tx.recipient = 5;
+        tx.value = 10;
+        struct State state_final = apply(state_init, tx);
+    }
 }
