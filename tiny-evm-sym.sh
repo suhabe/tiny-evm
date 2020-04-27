@@ -13,7 +13,7 @@ pwd
                               -write-test-info -only-output-states-covering-new --optimize --libc=uclibc \
                               --posix-runtime "${PROGRAM}".bc ${NUM_ACCOUNTS}
 cd klee-last
-cp ../"${PROGRAM}" .
+cp ../"${PROGRAM}" ../uint256.h .
 gcc --coverage "${PROGRAM}" -o "${PROGRAM}".cov.o
 
 EXT=ktest
